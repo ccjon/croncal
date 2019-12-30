@@ -63,7 +63,6 @@ if (exists($opts{h})) {
 
 if (exists($opts{t})) {
   $timezone = $opts{t};
-  $ENV{TZ} = $timezone;
 }
 
 # 1 day from now by default - this is located here in case option t is used
@@ -227,11 +226,32 @@ for (my $second = $startsec; $second < $endsec; $second += 60) {
   for my $parsed (@joblist) {
 
     if (isdue($day, $month, $year, $dow, $hour, $min, $parsed)) {
+	if (exists($opts{t})) {
+		# if t opt set the new tz for the output
+		my $newtime = DateTime->new(
+		    year       => $year,
+		    month      => $month,
+		    day        => $day,
+		    hour       => $hour,
+		    minute     => $min,
+		    second     => 0,
+		    time_zone  => DateTime::TimeZone::Local->TimeZone()
+		);
+		$newtime->set_time_zone( $timezone );
+		$year 	= $newtime->year;
+		$month 	= $newtime->month;
+		$day 	= $newtime->day;
+		$hour	= $newtime->hour;
+		$min	= $newtime->minute;
+	}
+	    
       push @{$calendar{$year}{$month}{$day}{$hour}{$min}}, $parsed;
     }
   }
 }
 
+# convert the dates to the output timezone
+#
 
 # Finally, print the resulting calendar
 
@@ -294,6 +314,7 @@ if ($outformat eq 'ical') {
 
 sub show_help {
 
+  print STDERR "\n";
   print STDERR "Usage: $progname [ -s start ] [ -e end | -d duration ] [ -f cronfile ] [ -o format ] [ -x ]\n";
   print STDERR "       $progname -h\n";
   print STDERR "\n";
@@ -306,7 +327,13 @@ sub show_help {
   print STDERR "-t tz_name   : sets time_zone for output\n";
   print STDERR "-h           : show this help\n";
   print STDERR "\n";
-  print STDERR "Example: $progname -f /var/spool/cron/user1 -s '2012-07-24 00:00' -d 7200 -o ical\n";
+  print STDERR "Examples: \n";
+  print STDERR "	 $progname -f /var/spool/cron/user1 -s '2012-07-24 00:00' -d 7200 -o ical\n";
+  print STDERR "         Processes file /var/spool/cron/user1 using local zone with start time  '2012-07-24 00:00' (-s) for next 7200 secconds (-d) outputing ical format (-o)\n";
+  print STDERR "\n";
+  print STDERR "	 TZ=UTC $progname -x -t America/Los_Angeles < crontab.save\n";
+  print STDERR "         Processes file crontab.save using UTC (TZ=UTC) and converts output to America/Los_Angeles (-t), output include shedules (-x)  \n";
+  print STDERR "\n\n";
 
 }
 
